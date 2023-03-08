@@ -6,7 +6,7 @@ More more informations, plz take a look into his documentation & read.me
 
 # Pinout
 
-The pinout for the rz-easyFPGA A2.2 board is:
+## The pinout for the rz-easyFPGA A2.2 board is:
 
 110 - Audio Left
 
@@ -15,7 +15,7 @@ The pinout for the rz-easyFPGA A2.2 board is:
 It uses the on board serial to communicate with your computer.
 
 
-The pinout for the MCC-C bulk board is:
+## The pinout for the MCC-C bulk board is:
 86 - Audio Left
 84 - Audio Right
 
