@@ -20,7 +20,7 @@ module async_transmitter(
     // TxD_data is latched so that it doesn't have to stay valid while it is being sent
 
     parameter ClkFrequency = 50000000;	// 25MHz
-    parameter Baud = 115200;
+    parameter Baud = 600000; //115200;
 
     ////////////////////////////////
     wire BitTick;
@@ -84,7 +84,7 @@ module async_receiver(
     );
 
     parameter ClkFrequency = 50000000; // 12MHz
-    parameter Baud = 115200;
+    parameter Baud = 600000; //115200;
 
     parameter Oversampling = 8;  // needs to be a power of 2
     // we oversample the RxD line at a fixed rate to capture each RxD data bit at the "right" time
@@ -204,7 +204,7 @@ module BaudTickGen(
     );
 
     parameter ClkFrequency = 50000000;
-    parameter Baud = 115200;
+    parameter Baud = 600000; //115200;
     parameter Oversampling = 1;
 
     function integer log2(input integer v); begin log2=0; while(v>>log2) log2=log2+1; end endfunction
