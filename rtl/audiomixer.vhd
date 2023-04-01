@@ -49,7 +49,6 @@ entity audiomixer is
     
     data_in1:  	in std_logic_vector(17 downto 0);
     data_in2:  	in std_logic_vector(17 downto 0);
-    data_in3:  	in std_logic_vector(17 downto 0);
     
     audio_out: 	out std_logic
     );
@@ -108,7 +107,7 @@ begin
 	end process;	
 	
 	-- assign an input
-	p_chan_mixer : process(cnt_div, data_in1, data_in2, data_in3)
+	p_chan_mixer : process(cnt_div, data_in1, data_in2)
 	begin
 		current_input <= (others => '0');
 		case cnt_div(1 downto 0) is
@@ -116,8 +115,6 @@ begin
 				current_input <= data_in1;
 			when "10" =>
 				current_input <= data_in2;
-			when "01" =>
-				current_input <= data_in3;
 			when "00" => null; -- mix outputs become valid on this clock
 			when others => null;
 		end case;
