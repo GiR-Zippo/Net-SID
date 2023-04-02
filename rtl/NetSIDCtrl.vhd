@@ -100,6 +100,7 @@ architecture RTL of NetSIDCtrl is
 	signal rx_special				: std_logic := '0';
 	signal mode						: std_logic := '0';
 	signal sid_swapped			: unsigned(1 downto 0) := (others => '0');
+	signal mute_audio				: std_logic := '0';
 
 	component async_receiver port (
 		clk				: in  std_logic;
@@ -143,11 +144,11 @@ architecture RTL of NetSIDCtrl is
   
   
 begin
-	AUDIO1_LEFT		<= audio_pwm;
-	AUDIO1_RIGHT	<= audio_pwm;
+	AUDIO1_LEFT		<= audio_pwm when mute_audio = '0' else '0';
+	AUDIO1_RIGHT	<= audio_pwm when mute_audio = '0' else '0';
 	nrxdp				<= not rx_data_present;
 	rst 				<= not locked_pll;
-	LED2 				<= not mode;
+	LED2 				<= not buf_full;
 	LED1 				<= not sid_swapped(0);
 	-----------------------------------------------------------------------------
 	-- Clocks
@@ -264,18 +265,6 @@ begin
 		std_logic_vector(audio_data)	=> sid2_audio	-- audio out 18 bits
 	);
 		
-	/*toggle_sw : process (SW1, rst)
-	begin
-		if falling_edge(SW1) then
-			if mode ='1' then
-				mode <= '0';
-			else
-				mode <= '1';
-			end if;
-			
-		end if;
-	end process;*/
-
 	-----------------------------------------------------------------------------
 	-- state machine control for ram_to_sid process
 	sm_control: process (clk32, rst)
@@ -391,6 +380,7 @@ begin
 				rx_special <= '1';
 			elsif rx_state = "01" and rx_special = '1' then
 				sid_rst 	   <= rx_data(7);
+				mute_audio  <= rx_data(6);
 				mode 			<= rx_data(0);
 				sid_swapped <= rx_data(2 downto 1);
 			elsif rx_state = "00" and rx_special = '1' then
