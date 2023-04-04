@@ -4,6 +4,9 @@ library ieee;
 	use ieee.numeric_std.all;
 	
 entity NetSIDCtrl is
+  generic(
+		Baud : integer := 600000
+   );
 	port (
 		JOY_SELECT		: in  std_logic;	-- active low reset
 		CLK				: in  std_logic;	-- main clock 32Mhz
@@ -13,7 +16,25 @@ entity NetSIDCtrl is
 		RX					: in  std_logic;	-- RS232 data to FPGA
 		TX					: out std_logic;	-- RS232 data from FPGA
 		LED2				: out std_logic;	-- output LED
-		SW1				: in	std_logic
+		SW1				: in	std_logic;
+		
+		-----------------------------------------------------------------------------
+		-- Clocks
+		-----------------------------------------------------------------------------
+		clk01				: in  std_logic;	--  1 Mhz
+		clk04				: in  std_logic;	--  4 Mhz
+		clk32				: in  std_logic;	-- 32 Mhz
+		locked_pll		: in  std_logic;
+		
+		-----------------------------------------------------------------------------
+		-- FIFO buffer
+		-----------------------------------------------------------------------------
+		ram_ai			: inout unsigned(13 downto 0);
+		ram_ao			: inout unsigned(13 downto 0);
+		ram_do			: in	  std_logic_vector( 7 downto 0);
+		rx_data_to_RAM	: out   unsigned(7 downto 0);
+		nrxdp				: out   std_logic
+		
 		);
 	end;
 	
@@ -42,21 +63,20 @@ architecture RTL of NetSIDCtrl is
 	);
 
 	signal clk_div					: unsigned(4 downto 0) := (others => '0');
-	signal clk01					: std_logic := '0';	--  1 Mhz
-	signal clk04					: std_logic := '0';	--  4 Mhz
-	signal clk32					: std_logic := '0';	-- 32 Mhz
+	--signal clk01					: std_logic := '0';	--  1 Mhz
+	--signal clk04					: std_logic := '0';	--  4 Mhz
+	--signal clk32					: std_logic := '0';	-- 32 Mhz
+	--signal locked_pll				: std_logic := '0';
 
 	signal stUARTnow				: uartsm := st01;
 	signal stUARTnext				: uartsm := st01;
 	signal tx_data					: unsigned(7 downto 0) := (others => '1');
 	signal rx_data					: unsigned(7 downto 0) := (others => '1');
-	signal rx_data_to_RAM		: unsigned(7 downto 0) := (others => '1');
+
 	signal TxD_busy				: std_logic := '0';
 	signal write_to_uart			: std_logic := '0';
 	signal rx_data_present		: std_logic := '0';
 
-	signal locked_pll				: std_logic := '0';
-	
 	signal stSIDnow				: RAMtoSIDState := stInit;
 	signal stSIDnext				: RAMtoSIDState := stInit;
 	
@@ -79,16 +99,11 @@ architecture RTL of NetSIDCtrl is
 	signal sid2_we					: std_logic := '0';
 	signal sid2_px					: unsigned(7 downto 0) := (others => '0');
 	signal sid2_py					: unsigned(7 downto 0) := (others => '0');
-	
-	signal ram_ai					: unsigned(13 downto 0) := (others => '0');
-	signal ram_ao					: unsigned(13 downto 0) := (others => '1');
-	signal ram_do					: std_logic_vector( 7 downto 0) := (others => '0');
 
 	signal cycle_cnt				: unsigned(20 downto 0) := (others => '0');
 	signal rst						: std_logic := '0';
 	signal sid_rst					: std_logic := '0';
 	signal audio_pwm				: std_logic := '0';
-	signal nrxdp					: std_logic := '0';
 	signal fifo_empty				: std_logic := '1';
 	signal fifo_stop				: std_logic := '1';
 	signal buf_full				: std_logic := '0';
@@ -102,7 +117,11 @@ architecture RTL of NetSIDCtrl is
 	signal sid_swapped			: unsigned(1 downto 0) := (others => '0');
 	signal mute_audio				: std_logic := '0';
 
-	component async_receiver port (
+	component async_receiver 
+	generic(
+        Baud        	: integer := Baud
+    );
+	port (
 		clk				: in  std_logic;
 		RxD				: in  std_logic;
 		RxD_data			: out unsigned(7 downto 0);
@@ -111,7 +130,11 @@ architecture RTL of NetSIDCtrl is
 	end component;
 	
 	
-	component async_transmitter port (
+	component async_transmitter 
+	generic(
+        Baud       	: integer := Baud
+    );
+	port (
 		clk				: in  std_logic;
 		TxD				: out std_logic;
 		TxD_start		: in  std_logic;
@@ -119,19 +142,7 @@ architecture RTL of NetSIDCtrl is
 		TxD_busy			: out std_logic
 	);
 	end component;
-  
-  	component Ram2Port
-	port (
-		rdaddress  	: in std_logic_vector(13 downto 0);
-		wraddress  	: in std_logic_vector(13 downto 0);
-		rdclock		: in  std_logic;
-		wrclock		: in  std_logic;
-		data			: in std_logic_vector(7 downto 0);
-		wren			: in  std_logic;
-		q  			: out std_logic_vector(7 downto 0)
-	);
-  end component;
-  
+   
   component SEG_Display
   port(
 		clk	: in  std_logic;
@@ -150,24 +161,7 @@ begin
 	rst 				<= not locked_pll;
 	LED2 				<= not buf_full;
 	LED1 				<= not sid_swapped(0);
-	-----------------------------------------------------------------------------
-	-- Clocks
-	-----------------------------------------------------------------------------
-	--
-	-- provides a selection of synchronous clocks 1, 4 and 32 Mhz
-	-- could provide the baud clock for serial comms
-	-- provides a timed reset signal
-	--
-	u_clocks: entity work.Pll
-	port map (
-		inclk0	=> CLK,
-		areset	=> JOY_SELECT,
-		--
-		c0			=> clk01,
-		c1			=> clk04,
-		c2			=> clk32,
-		locked 	=> locked_pll	-- timed active high reset
-	);
+
 
   -----------------------------------------------------------------------------
   -- UART RS232 rx and tx
@@ -177,7 +171,8 @@ begin
   -- Each contains an embedded 16-byte FIFO buffer.
   --
 	
-	des: async_receiver port map (
+	des: async_receiver 
+	port map (
 		clk				=> CLK,
 		RxD				=> RX,
 
@@ -194,24 +189,6 @@ begin
 		TxD_busy			=> TxD_busy				-- busy when set
 	);
 
-  -----------------------------------------------------------------------------
-  -- FIFO buffer
-  -----------------------------------------------------------------------------
-	--
-	-- dual ported async read / write access
-	--
-	u_ram: Ram2Port
-	port map (
-		q				=> ram_do,
-		rdaddress	=> std_logic_vector(ram_ao),
-		rdclock		=> clk32,
-
-		wraddress	=> std_logic_vector(ram_ai),
-		wrclock		=> nrxdp,
-		data			=> std_logic_vector(rx_data_to_RAM),
-		wren			=> '1'
-	);
-	
 	u_audiomixer: entity work.audiomixer
 	port map(
 		clk				=> CLK,
